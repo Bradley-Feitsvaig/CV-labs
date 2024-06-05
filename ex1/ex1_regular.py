@@ -25,7 +25,7 @@ def hough_transform(edges):
     height, width = edges.shape
     diag_len = int(np.sqrt(height ** 2 + width ** 2))
     ds = np.arange(-diag_len, diag_len, 1)
-    thetas = np.deg2rad(np.arange(-90, 90, 0.1))
+    thetas = np.deg2rad(np.arange(-90, 90, 1))
 
     accumulator = np.zeros((len(ds), len(thetas)), dtype=np.int64)
     y_idxs, x_idxs = np.nonzero(edges)
@@ -102,8 +102,7 @@ def detect_triangles(lines, width, height):
     for line1, line2 in tqdm(combinations(lines, 2)):
         if abs(line1[1] - line2[1]) > np.deg2rad(10):
             point = line_intersection(line1, line2)
-            if point and 0 <= point[0] <= width and 0 <= point[1] <= height:
-                intersections[(line1, line2)] = point
+            intersections[(line1, line2)] = point
 
     intersection_keys = list(intersections.keys())
     print(f"Found {len(intersection_keys)} intersections")
