@@ -111,8 +111,8 @@ def hough_transform(image_data, edges, min_theta, max_theta):
             # for each rho, compute the closest rho among the rho_values below it
             # the index corresponding to that rho is the one we will increase
             rho_pos = np.where(current_d > ds)[0][-1]
-            # rho_pos = np.argmin(np.abs(current_rho - rho_values))
             accumulator[rho_pos, t] += 1
+
     # Take the polar coordinates most matched
     final_rho_index, final_theta_index = np.where(accumulator > image_data['edge_detection_threshold'])
     final_rho = ds[final_rho_index]
@@ -248,8 +248,8 @@ def color_edges_by_triangle(canny_edges, triangle_lines):
                         if abs(x * a + y * b - rho) < 1.5:  # Check if point (x, y) lies on the line
                             color_edges[y, x] = color_map[triangle_type]
                             # Color neighbors if they are white
-                            for dy in range(-5, 5):  # Check a 5x5 neighborhood
-                                for dx in range(-5, 5):
+                            for dy in range(-4, 5):  # Check a 9X9 neighborhood
+                                for dx in range(-4, 5):
                                     ny, nx = y + dy, x + dx
                                     if 0 <= ny < height and 0 <= nx < width and canny_edges[ny, nx] == 255:
                                         color_edges[ny, nx] = color_map[triangle_type]
