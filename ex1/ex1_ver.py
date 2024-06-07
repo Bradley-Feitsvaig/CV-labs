@@ -85,42 +85,39 @@ def remove_close_lines(lines, d_threshold, theta_threshold):
 
 
 def hough_transform(image_data, edges, min_theta, max_theta):
-    # Initialize the counter matrix in polar coordinates
     height, width = edges.shape
     diagonal = int(np.sqrt(height ** 2 + width ** 2))
 
     ds = np.arange(-diagonal, diagonal, image_data['ds_steps'])
     thetas = np.arange(min_theta, max_theta, image_data['thetas_steps'])
 
-    # Compute the dimension of the accumulator matrix
     num_thetas = len(thetas)
     num_ds = len(ds)
     accumulator = np.zeros([num_ds, num_thetas], dtype=np.int64)
-    print('Accumulator shape (rhos x thetas):' + str(accumulator.shape))
-    # Pre-compute sin and cos
+    voting_points = {}
+
     sins = np.sin(thetas)
     coss = np.cos(thetas)
 
-    # Consider edges only
     ys, xs = np.nonzero(edges)
 
     for x, y in tqdm(zip(xs, ys)):
         for t in range(num_thetas):
-            # compute the rhos for the given point for each theta
             current_d = int(x * coss[t] + y * sins[t])
-            # for each rho, compute the closest rho among the rho_values below it
-            # the index corresponding to that rho is the one we will increase
             rho_pos = np.where(current_d > ds)[0][-1]
             accumulator[rho_pos, t] += 1
+            line = (ds[rho_pos], thetas[t])
+            if line not in voting_points:
+                voting_points[line] = []
+            voting_points[line].append((x, y))
 
-    # Take the polar coordinates most matched
     final_rho_index, final_theta_index = np.where(accumulator > image_data['edge_detection_threshold'])
     final_rho = ds[final_rho_index]
     final_theta = thetas[final_theta_index]
 
     lines = np.vstack([final_rho, final_theta]).T
     lines = remove_close_lines(lines, image_data['d_threshold'], image_data['theta_threshold'])
-    return lines, accumulator
+    return lines, accumulator, voting_points
 
 
 def draw_lines(image, lines):
@@ -204,7 +201,7 @@ def classify_triangle(pt1, pt2, pt3, line1, line2, line3):
 
 
 def find_and_classify_triangles(intersections, lines):
-    triangles = {'equilateral': [], 'isosceles': [], 'right': []}
+    triangles = {'isosceles': [], 'right': [],'equilateral': []}
     triangle_lines = {'equilateral': set(), 'isosceles': set(), 'right': set()}
     n = len(lines)
 
@@ -227,7 +224,7 @@ def find_and_classify_triangles(intersections, lines):
     return triangles, triangle_lines
 
 
-def color_edges_by_triangle(canny_edges, triangle_lines):
+def color_edges_by_triangle(canny_edges, triangle_lines,voting_points):
     color_map = {
         'equilateral': (0, 0, 255),   # Blue
         'isosceles': (0, 255, 0),     # Green
@@ -237,22 +234,17 @@ def color_edges_by_triangle(canny_edges, triangle_lines):
     color_edges = cv2.cvtColor(canny_edges, cv2.COLOR_GRAY2BGR)
     height, width = canny_edges.shape
 
-    for y in range(height):
-        for x in range(width):
-            if canny_edges[y, x] == 255:  # If it is an edge pixel
-                for triangle_type, lines in triangle_lines.items():
-                    for rho, theta in lines:
-                        a = np.cos(theta)
-                        b = np.sin(theta)
-                        # Line equation: x*cos(theta) + y*sin(theta) = rho
-                        if abs(x * a + y * b - rho) < 1.5:  # Check if point (x, y) lies on the line
-                            color_edges[y, x] = color_map[triangle_type]
-                            # Color neighbors if they are white
-                            for dy in range(-4, 5):  # Check a 9X9 neighborhood
-                                for dx in range(-4, 5):
-                                    ny, nx = y + dy, x + dx
-                                    if 0 <= ny < height and 0 <= nx < width and canny_edges[ny, nx] == 255:
-                                        color_edges[ny, nx] = color_map[triangle_type]
+    for triangle_type, lines in triangle_lines.items():
+        for line in lines:
+            points = voting_points[line]
+            for x, y in points:
+                color_edges[y, x] = color_map[triangle_type]
+                # Color neighbors if they are white
+                for dy in range(-4, 5):  # Check a 9X9 neighborhood
+                    for dx in range(-4, 5):
+                        ny, nx = y + dy, x + dx
+                        if 0 <= ny < height and 0 <= nx < width and canny_edges[ny, nx] == 255:
+                            color_edges[ny, nx] = color_map[triangle_type]
 
     return color_edges
 
@@ -262,7 +254,7 @@ for img_name, img in images.items():
     plot(img_name, img[0])
     canny_edges = detect_edges(img[0], img[1]['canny_high_threshold'], img[1]['canny_high_threshold'])
     plot(f'{img_name}_edges', canny_edges)
-    lines, accumulator = hough_transform(img[1], canny_edges, img[1]['hough_min_theta'], img[1]['hough_max_theta'])
+    lines, accumulator, voting_points = hough_transform(img[1], canny_edges, img[1]['hough_min_theta'], img[1]['hough_max_theta'])
 
     # Normalize accumulator for visualization
     norm_accumulator = cv2.normalize(accumulator, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
@@ -277,7 +269,7 @@ for img_name, img in images.items():
         cv2.circle(img[0], (x, y), radius=5, color=(255, 0, 0), thickness=-1)  # Draw red dots at intersections
     plot('Intersections', img[0])
     triangles, triangle_lines = find_and_classify_triangles(intersections, lines)
-    image_with_triangles = color_edges_by_triangle(canny_edges.copy(), triangle_lines)
+    image_with_triangles = color_edges_by_triangle(canny_edges.copy(), triangle_lines,voting_points)
     plot(f'{img_name} with Triangles', image_with_triangles)
 
     # Print counts of each triangle type
