@@ -191,29 +191,32 @@ def find_and_classify_triangles(intersections, lines):
     return triangles, triangle_lines
 
 
-def color_edges_by_triangle(canny_edges, triangle_lines, voting_points):
+def color_edges_by_triangle(final_image, canny_edges, triangle_lines, voting_points, window_position):
     color_map = {
         'equilateral': (0, 0, 255),  # Blue
         'isosceles': (0, 255, 0),  # Green
         'right': (255, 0, 0),  # Red
     }
 
-    color_edges = cv2.cvtColor(canny_edges, cv2.COLOR_GRAY2BGR)
     height, width = canny_edges.shape
+    x_offset, y_offset = window_position
 
     for triangle_type, lines in triangle_lines.items():
         for line in lines:
             points = voting_points[line]
             for x, y in points:
-                color_edges[y, x] = color_map[triangle_type]
+                if 0 <= y + y_offset < final_image.shape[0] and 0 <= x + x_offset < final_image.shape[1]:
+                    final_image[y + y_offset, x + x_offset] = color_map[triangle_type]
                 # Color neighbors if they are white
                 for dy in range(-4, 5):  # Check a 9X9 neighborhood
                     for dx in range(-4, 5):
-                        ny, nx = y + dy, x + dx
-                        if 0 <= ny < height and 0 <= nx < width and canny_edges[ny, nx] == 255:
-                            color_edges[ny, nx] = color_map[triangle_type]
+                        ny, nx = y + dy + y_offset, x + dx + x_offset
+                        if (0 <= ny < final_image.shape[0] and 0 <= nx < final_image.shape[1] and
+                                0 <= y + dy < height and 0 <= x + dx < width and
+                                canny_edges[y + dy, x + dx] == 255):
+                            final_image[ny, nx] = color_map[triangle_type]
 
-    return color_edges
+    return final_image
 
 
 def sliding_window(image, window_size, step_size):
@@ -227,14 +230,13 @@ def draw_markers(image, lines, ds, thetas, color):
         rho_index = np.where(ds == rho)[0]
         theta_index = np.where(thetas == theta)[0]
         if rho_index.size > 0 and theta_index.size > 0:
-            print(f'Drawing marker at rho index: {rho_index[0]}, theta index: {theta_index[0]} with color: {color}')
             cv2.rectangle(image, (theta_index[0] - 2, rho_index[0] - 2), (theta_index[0] + 2, rho_index[0] + 2), color,
                           thickness=2, lineType=cv2.LINE_8)
 
 
 # Sliding window parameters
 window_size = (400, 300)
-step_size = (150, 300)
+step_size = (300, 150)
 
 images = build_images_dict()
 
@@ -274,15 +276,15 @@ for img_name, img in images.items():
         plot(f'{img_name} hough transform (with color-coded triangle sides) \nwindow_{x}_{y}', norm_accumulator)
 
         if len(triangles) > 0:
-            final_image[y:y + window_size[1], x:x + window_size[0]] = color_edges_by_triangle(window, triangle_lines,
-                                                                                              voting_points)
-
-        # Print counts of each triangle type
-        for triangle_type, triangle_list in triangles.items():
-            print(f"{triangle_type.capitalize()} triangles found in window {x},{y}: {len(triangle_list)}")
+            final_image = color_edges_by_triangle(final_image, window, triangle_lines, voting_points, (x, y))
+            # Print counts of each triangle type
+            for triangle_type, triangle_list in triangles.items():
+                print(f"{triangle_type.capitalize()} triangles found in window {x},{y}: {len(triangle_list)}")
 
     # Draw all the lines accumulated across all windows
     lines_img = draw_lines(canny_edges.copy(), all_lines)
     plot(f'{img_name} detected lines', lines_img)
 
     plot(f'{img_name} Detected triangles (color-coded)', final_image)
+
+
