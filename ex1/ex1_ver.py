@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 from matplotlib import pyplot as plt
-from tqdm import tqdm
 
 
 def plot(image_name, image):
@@ -35,6 +34,38 @@ def build_images_dict():
                   'thetas_steps': np.pi / 180, 'edge_detection_threshold': 150, 'd_threshold': 10,
                   'theta_threshold': 0.1, 'window_shape': (400, 300), 'step_shape': (300, 150)}
     images_dict['four_triangles_example'] = (image, image_data)
+    # # flags1
+    # image = cv2.imread('group_flags/flags1.jpg')
+    # low_threshold, high_threshold = get_threshold(image)
+    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 7,
+    #               'thetas_steps': np.pi / 400, 'edge_detection_threshold': 320, 'd_threshold': 30, 'theta_threshold': 2}
+    # images_dict['flags1'] = (image, image_data)
+    #
+    # # top-view-triangle-sandwiches
+    # image = cv2.imread('group_natural/top-view-triangle-sandwiches-slate-with-tomatoes_23-2148640143.png')
+    # low_threshold, high_threshold = get_threshold(image)
+    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 7,
+    #               'thetas_steps': np.pi / 400, 'edge_detection_threshold': 320, 'd_threshold': 30, 'theta_threshold': 2}
+    # images_dict['top-view-triangle-sandwiches-slate-with-tomatoes'] = (image, image_data)
+    #
+    # # t_signs2
+    # image = cv2.imread('group_signs/t_signs2.jpg')
+    # low_threshold, high_threshold = get_threshold(image)
+    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 7,
+    #               'thetas_steps': np.pi / 400, 'edge_detection_threshold': 320, 'd_threshold': 30, 'theta_threshold': 2}
+    # images_dict['t_signs2'] = (image, image_data)
+    #
+    # # several-triangles
+    # image = cv2.imread('group_sketch/several-triangles.jpg')
+    # low_threshold, high_threshold = get_threshold(image)
+    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 7,
+    #               'thetas_steps': np.pi / 400, 'edge_detection_threshold': 320, 'd_threshold': 30, 'theta_threshold': 2}
+    # images_dict['several-triangles'] = (image, image_data)
+
     return images_dict
 
 
@@ -68,7 +99,7 @@ def hough_transform(image_data, edges):
 
     ys, xs = np.nonzero(edges)
 
-    for x, y in tqdm(zip(xs, ys)):
+    for x, y in zip(xs, ys):
         for t in range(num_thetas):
             current_d = int(x * coss[t] + y * sins[t])
             rho_pos = np.where(current_d > ds)[0][-1]
@@ -155,13 +186,14 @@ def classify_triangle(pt1, pt2, pt3, line1, line2, line3):
     ]
 
     # Classify as right triangle if any angle is close to 90 degrees
-    if any(np.isclose(ang, np.pi / 2, atol=0.1) for ang in angles):  # 0.1 rad tolerance for right angle
+    if any(np.isclose(ang, np.pi / 2, atol=0.01) for ang in angles):
         return 'right'
     # Equilateral triangle check (all sides approximately equal)
-    elif np.isclose(d1, d2, atol=10) and np.isclose(d2, d3, atol=10):
+    elif np.isclose(d1, d2, atol=1) and np.isclose(d2, d3, atol=1) and np.isclose(d1, d3, atol=1) and all(
+            np.isclose(ang, np.pi / 3, atol=0.1) for ang in angles):
         return 'equilateral'
     # Isosceles triangle check (at least two sides approximately equal)
-    elif np.isclose(d1, d2, atol=10) or np.isclose(d2, d3, atol=10) or np.isclose(d3, d1, atol=10):
+    elif np.isclose(d1, d2, atol=1) or np.isclose(d2, d3, atol=1) or np.isclose(d3, d1, atol=1):
         return 'isosceles'
     else:
         return 'other'
@@ -181,21 +213,22 @@ def find_and_classify_triangles(intersections, lines):
                     pt1 = intersections[(line1, line2)]
                     pt2 = intersections[(line2, line3)]
                     pt3 = intersections[(line3, line1)]
-                    triangle_type = classify_triangle(pt1, pt2, pt3, line1, line2, line3)
-                    if triangle_type != 'other':
-                        triangles[triangle_type].append((pt1, pt2, pt3))
-                        triangle_lines[triangle_type].add(line1)
-                        triangle_lines[triangle_type].add(line2)
-                        triangle_lines[triangle_type].add(line3)
+                    if pt1 != pt2 and pt2 != pt3 and pt3 != pt1:
+                        triangle_type = classify_triangle(pt1, pt2, pt3, line1, line2, line3)
+                        if triangle_type != 'other':
+                            triangles[triangle_type].append((pt1, pt2, pt3))
+                            triangle_lines[triangle_type].add(line1)
+                            triangle_lines[triangle_type].add(line2)
+                            triangle_lines[triangle_type].add(line3)
 
     return triangles, triangle_lines
 
 
 def color_edges_by_triangle(final_image, canny_edges, triangle_lines, voting_points, window_position):
     color_map = {
-        'equilateral': (0, 0, 255),  # Blue
+        'equilateral': (255, 0, 0),  # Blue
         'isosceles': (0, 255, 0),  # Green
-        'right': (255, 0, 0),  # Red
+        'right': (0, 0, 255),  # Red
     }
 
     height, width = canny_edges.shape
@@ -208,8 +241,8 @@ def color_edges_by_triangle(final_image, canny_edges, triangle_lines, voting_poi
                 if 0 <= y + y_offset < final_image.shape[0] and 0 <= x + x_offset < final_image.shape[1]:
                     final_image[y + y_offset, x + x_offset] = color_map[triangle_type]
                 # Color neighbors if they are white
-                for dy in range(-4, 5):  # Check a 9X9 neighborhood
-                    for dx in range(-4, 5):
+                for dy in range(-5, 6):  # Check a 10X10 neighborhood
+                    for dx in range(-5, 6):
                         ny, nx = y + dy + y_offset, x + dx + x_offset
                         if (0 <= ny < final_image.shape[0] and 0 <= nx < final_image.shape[1] and
                                 0 <= y + dy < height and 0 <= x + dx < width and
@@ -243,6 +276,7 @@ images = build_images_dict()
 all_lines = []
 
 for img_name, img in images.items():
+    print(f'{img_name} triangle detection')
     plot(f'{img_name} input image', img[0])
 
     canny_edges = detect_edges(img[0], img[1]['canny_high_threshold'], img[1]['canny_high_threshold'])
@@ -274,7 +308,7 @@ for img_name, img in images.items():
         draw_markers(norm_accumulator, triangle_lines['right'], ds, thetas, (0, 0, 255))  # Red for right
         plot(f'{img_name} hough transform (with color-coded triangle sides) \nwindow_{x}_{y}', norm_accumulator)
 
-        if len(triangles) > 0:
+        if any(len(triangle_list) > 0 for triangle_list in triangles.values()):
             final_image = color_edges_by_triangle(final_image, window, triangle_lines, voting_points, (x, y))
             # Print counts of each triangle type
             for triangle_type, triangle_list in triangles.items():
@@ -285,5 +319,3 @@ for img_name, img in images.items():
     plot(f'{img_name} detected lines', lines_img)
 
     plot(f'{img_name} Detected triangles (color-coded)', final_image)
-
-
