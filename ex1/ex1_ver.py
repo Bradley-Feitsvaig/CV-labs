@@ -228,17 +228,15 @@ def draw_markers(image, lines, ds, thetas, color):
         theta_index = np.where(thetas == theta)[0]
         if rho_index.size > 0 and theta_index.size > 0:
             print(f'Drawing marker at rho index: {rho_index[0]}, theta index: {theta_index[0]} with color: {color}')
-            cv2.rectangle(image, (theta_index[0] - 2, rho_index[0] - 2), (theta_index[0] + 2, rho_index[0] + 2), color, -1)
+            cv2.rectangle(image, (theta_index[0] - 2, rho_index[0] - 2), (theta_index[0] + 2, rho_index[0] + 2), color,
+                          thickness=2, lineType=cv2.LINE_8)
 
 
 # Sliding window parameters
 window_size = (400, 300)
-step_size = (300, 300)
+step_size = (150, 300)
 
 images = build_images_dict()
-
-# Store the hough transform images for each window
-hough_images = []
 
 # Initialize a list to store all the lines detected across all windows
 all_lines = []
@@ -268,13 +266,12 @@ for img_name, img in images.items():
         triangles, triangle_lines = find_and_classify_triangles(intersections, lines)
 
         norm_accumulator = cv2.normalize(accumulator, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
-
+        norm_accumulator = cv2.cvtColor(norm_accumulator, cv2.COLOR_GRAY2BGR)
         # Draw markers for different types of triangle sides
         draw_markers(norm_accumulator, triangle_lines['equilateral'], ds, thetas, (255, 0, 0))  # Blue for equilateral
         draw_markers(norm_accumulator, triangle_lines['isosceles'], ds, thetas, (0, 255, 0))  # Green for isosceles
         draw_markers(norm_accumulator, triangle_lines['right'], ds, thetas, (0, 0, 255))  # Red for right
-
-        hough_images.append((f'window_{x}_{y}', norm_accumulator))
+        plot(f'{img_name} hough transform (with color-coded triangle sides) \nwindow_{x}_{y}', norm_accumulator)
 
         if len(triangles) > 0:
             final_image[y:y + window_size[1], x:x + window_size[0]] = color_edges_by_triangle(window, triangle_lines,
@@ -283,26 +280,6 @@ for img_name, img in images.items():
         # Print counts of each triangle type
         for triangle_type, triangle_list in triangles.items():
             print(f"{triangle_type.capitalize()} triangles found in window {x},{y}: {len(triangle_list)}")
-
-    # Plot all hough transform images in one figure with multiple rows
-    num_images = len(hough_images)
-    cols = 4
-    rows = (num_images // cols) + (1 if num_images % cols else 0)
-
-    fig, axs = plt.subplots(rows, cols, figsize=(20, 5 * rows))
-    for i, (name, hough_image) in enumerate(hough_images):
-        row, col = divmod(i, cols)
-        axs[row, col].imshow(hough_image, cmap='gray')
-        axs[row, col].set_title(name)
-        axs[row, col].axis('off')
-
-    # Hide any empty subplots
-    for j in range(i + 1, rows * cols):
-        fig.delaxes(axs.flat[j])
-
-    fig.suptitle(f'{img_name} hough transform (with color-coded triangle sides) for all windows', fontsize=20)
-    plt.tight_layout()
-    plt.show()
 
     # Draw all the lines accumulated across all windows
     lines_img = draw_lines(canny_edges.copy(), all_lines)
