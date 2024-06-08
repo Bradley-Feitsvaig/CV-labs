@@ -84,7 +84,7 @@ def hough_transform(image_data, edges):
 
     lines = np.vstack([final_rho, final_theta]).T
     lines = remove_close_lines(lines, image_data['d_threshold'], image_data['theta_threshold'])
-    return lines, accumulator, voting_points
+    return lines, accumulator, voting_points, ds, thetas
 
 
 def draw_lines(image, lines):
@@ -217,14 +217,23 @@ def color_edges_by_triangle(canny_edges, triangle_lines, voting_points):
 
 
 def sliding_window(image, window_size, step_size):
-    for y in range(0, image.shape[0], step_size):
-        for x in range(0, image.shape[1], step_size):
+    for y in range(0, image.shape[0], step_size[0]):
+        for x in range(0, image.shape[1], step_size[1]):
             yield x, y, image[y: min(y + window_size[1], image.shape[0]), x: min(x + window_size[0], image.shape[1])]
 
 
+def draw_markers(image, lines, ds, thetas, color):
+    for rho, theta in lines:
+        rho_index = np.where(ds == rho)[0]
+        theta_index = np.where(thetas == theta)[0]
+        if rho_index.size > 0 and theta_index.size > 0:
+            print(f'Drawing marker at rho index: {rho_index[0]}, theta index: {theta_index[0]} with color: {color}')
+            cv2.rectangle(image, (theta_index[0] - 2, rho_index[0] - 2), (theta_index[0] + 2, rho_index[0] + 2), color, -1)
+
+
 # Sliding window parameters
-window_size = (400, 300)  # Adjust window size as needed
-step_size = 300  # Adjust step size as needed
+window_size = (400, 300)
+step_size = (300, 300)
 
 images = build_images_dict()
 
@@ -235,15 +244,15 @@ hough_images = []
 all_lines = []
 
 for img_name, img in images.items():
-    plot(img_name, img[0])
+    plot(f'{img_name} input image', img[0])
 
     canny_edges = detect_edges(img[0], img[1]['canny_high_threshold'], img[1]['canny_high_threshold'])
-    plot(f'{img_name}_edges_window', canny_edges)
+    plot(f'{img_name} edges map', canny_edges)
 
     final_image = cv2.cvtColor(canny_edges, cv2.COLOR_GRAY2BGR)
 
     for x, y, window in sliding_window(canny_edges, window_size, step_size):
-        lines, accumulator, voting_points = hough_transform(img[1], window)
+        lines, accumulator, voting_points, ds, thetas = hough_transform(img[1], window)
 
         # Adjust the lines' coordinates based on the window position
         adjusted_lines = []
@@ -254,12 +263,19 @@ for img_name, img in images.items():
         # Accumulate adjusted lines
         all_lines.extend(adjusted_lines)
 
-        norm_accumulator = cv2.normalize(accumulator, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
-        hough_images.append((f'window_{x}_{y}', norm_accumulator))
-
         intersections = find_intersections(lines, window.shape)
 
         triangles, triangle_lines = find_and_classify_triangles(intersections, lines)
+
+        norm_accumulator = cv2.normalize(accumulator, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
+
+        # Draw markers for different types of triangle sides
+        draw_markers(norm_accumulator, triangle_lines['equilateral'], ds, thetas, (255, 0, 0))  # Blue for equilateral
+        draw_markers(norm_accumulator, triangle_lines['isosceles'], ds, thetas, (0, 255, 0))  # Green for isosceles
+        draw_markers(norm_accumulator, triangle_lines['right'], ds, thetas, (0, 0, 255))  # Red for right
+
+        hough_images.append((f'window_{x}_{y}', norm_accumulator))
+
         if len(triangles) > 0:
             final_image[y:y + window_size[1], x:x + window_size[0]] = color_edges_by_triangle(window, triangle_lines,
                                                                                               voting_points)
@@ -284,11 +300,12 @@ for img_name, img in images.items():
     for j in range(i + 1, rows * cols):
         fig.delaxes(axs.flat[j])
 
+    fig.suptitle(f'{img_name} hough transform (with color-coded triangle sides) for all windows', fontsize=20)
     plt.tight_layout()
     plt.show()
 
     # Draw all the lines accumulated across all windows
     lines_img = draw_lines(canny_edges.copy(), all_lines)
-    plot(f'{img_name} Detected Lines', lines_img)
+    plot(f'{img_name} detected lines', lines_img)
 
-    plot(f'{img_name} with Triangles', final_image)
+    plot(f'{img_name} Detected triangles (color-coded)', final_image)
