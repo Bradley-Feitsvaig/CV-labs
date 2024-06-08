@@ -33,7 +33,7 @@ def build_images_dict():
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
                   'thetas_steps': np.pi / 180, 'edge_detection_threshold': 150, 'd_threshold': 10,
-                  'theta_threshold': 0.1}
+                  'theta_threshold': 0.1, 'window_shape': (400, 300), 'step_shape': (300, 150)}
     images_dict['four_triangles_example'] = (image, image_data)
     return images_dict
 
@@ -235,8 +235,7 @@ def draw_markers(image, lines, ds, thetas, color):
 
 
 # Sliding window parameters
-window_size = (400, 300)
-step_size = (300, 150)
+
 
 images = build_images_dict()
 
@@ -251,7 +250,7 @@ for img_name, img in images.items():
 
     final_image = cv2.cvtColor(canny_edges, cv2.COLOR_GRAY2BGR)
 
-    for x, y, window in sliding_window(canny_edges, window_size, step_size):
+    for x, y, window in sliding_window(canny_edges, img[1]['window_shape'], img[1]['step_shape']):
         lines, accumulator, voting_points, ds, thetas = hough_transform(img[1], window)
 
         # Adjust the lines' coordinates based on the window position
