@@ -41,32 +41,35 @@ def build_images_dict():
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-                  'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 50,
-                  'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
+                  'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
+                  'theta_threshold': 0.1, 'window_shape': (155, 90), 'step_shape': (100, 100)}
     images_dict['flags1'] = (image, image_data)
 
-    # # top-view-triangle-sandwiches
-    # image = cv2.imread('group_natural/top-view-triangle-sandwiches-slate-with-tomatoes_23-2148640143.png')
+    # # il_570xN.3195615696_3srw
+    # image = cv2.imread('group_natural/il_570xN.3195615696_3srw.png')
     # low_threshold, high_threshold = get_threshold(image)
     # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 7,
-    #               'thetas_steps': np.pi / 400, 'edge_detection_threshold': 320, 'd_threshold': 30, 'theta_threshold': 2}
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
+    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
+    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
     # images_dict['top-view-triangle-sandwiches-slate-with-tomatoes'] = (image, image_data)
     #
     # # t_signs2
     # image = cv2.imread('group_signs/t_signs2.jpg')
     # low_threshold, high_threshold = get_threshold(image)
     # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 7,
-    #               'thetas_steps': np.pi / 400, 'edge_detection_threshold': 320, 'd_threshold': 30, 'theta_threshold': 2}
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
+    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
+    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
     # images_dict['t_signs2'] = (image, image_data)
     #
     # # several-triangles
     # image = cv2.imread('group_sketch/several-triangles.jpg')
     # low_threshold, high_threshold = get_threshold(image)
     # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 7,
-    #               'thetas_steps': np.pi / 400, 'edge_detection_threshold': 320, 'd_threshold': 30, 'theta_threshold': 2}
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
+    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
+    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
     # images_dict['several-triangles'] = (image, image_data)
 
     return images_dict
@@ -187,16 +190,18 @@ def classify_triangle(pt1, pt2, pt3, line1, line2, line3):
         angle(line2, line3),
         angle(line3, line1)
     ]
-
+    # Triangle inequality check
+    if not (d1 + d2 > d3 and d2 + d3 > d1 and d3 + d1 > d2):
+        return 'not a triangle'
     # Classify as right triangle if any angle is close to 90 degrees
     if any(np.isclose(ang, np.pi / 2, atol=0.01) for ang in angles):
         return 'right'
     # Equilateral triangle check (all sides approximately equal)
-    elif np.isclose(d1, d2, atol=1) and np.isclose(d2, d3, atol=1) and np.isclose(d1, d3, atol=1) and all(
+    elif np.isclose(d1, d2, atol=2) and np.isclose(d2, d3, atol=2) and np.isclose(d1, d3, atol=2) and all(
             np.isclose(ang, np.pi / 3, atol=0.1) for ang in angles):
         return 'equilateral'
     # Isosceles triangle check (at least two sides approximately equal)
-    elif np.isclose(d1, d2, atol=1) or np.isclose(d2, d3, atol=1) or np.isclose(d3, d1, atol=1):
+    elif np.isclose(d1, d2, atol=2) or np.isclose(d2, d3, atol=2) or np.isclose(d3, d1, atol=2):
         return 'isosceles'
     else:
         return 'other'
@@ -218,7 +223,7 @@ def find_and_classify_triangles(intersections, lines):
                     pt3 = intersections[(line3, line1)]
                     if pt1 != pt2 and pt2 != pt3 and pt3 != pt1:
                         triangle_type = classify_triangle(pt1, pt2, pt3, line1, line2, line3)
-                        if triangle_type != 'other':
+                        if triangle_type != 'other' and triangle_type != 'not a triangle':
                             triangles[triangle_type].append((pt1, pt2, pt3))
                             triangle_lines[triangle_type].add(line1)
                             triangle_lines[triangle_type].add(line2)
