@@ -19,10 +19,18 @@ def get_threshold(image, sigma=0.23):
     return lt, ht
 
 
-def detect_edges(image, low_threshold, high_threshold):
+def detect_edges(image, low_thresh,high_thresh,otsu_thresh = False, adaptive_thresholding = False, bilateral = True):
     grey_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(grey_image, (5, 5), 0)
-    edges = cv2.Canny(blurred, low_threshold, high_threshold)
+    if otsu_thresh is True:
+            _, thresh_im = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    elif adaptive_thresholding is True:
+        thresh_im = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
+                                            31, 8)
+    if bilateral is True:
+        thresh_im = cv2.bilateralFilter(blurred, 200, 75, 75)
+
+    edges = cv2.Canny(thresh_im, low_thresh, high_thresh)
     return edges
 
 
