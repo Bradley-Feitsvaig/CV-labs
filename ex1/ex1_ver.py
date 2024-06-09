@@ -19,7 +19,7 @@ def get_threshold(image, sigma=0.23):
     return lt, ht
 
 
-def detect_edges(image, low_thresh,high_thresh,otsu_thresh = False, adaptive_thresholding = False, bilateral = True):
+def detect_edges(image, low_thresh,high_thresh,otsu_thresh = False, adaptive_thresholding = False, bilateral = False):
     grey_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(grey_image, (5, 5), 0)
     if otsu_thresh is True:
