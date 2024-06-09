@@ -42,7 +42,7 @@ def build_images_dict():
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
                   'thetas_steps': np.pi / 180, 'edge_detection_threshold': 40, 'd_threshold': 10,
-                  'theta_threshold': 0.1, 'window_shape': (155, 90), 'step_shape': (155, 50)}
+                  'theta_threshold': 0.1, 'window_shape': (155, 90), 'step_shape': (155, 40)}
     images_dict['flags1'] = (image, image_data)
 
     # # il_570xN.3195615696_3srw
@@ -238,7 +238,6 @@ def color_edges_by_triangle(final_image, canny_edges, triangle_lines, voting_poi
         'isosceles': (0, 255, 0),  # Green
         'right': (0, 0, 255),  # Red
     }
-    plot('canny_edges', canny_edges)
     height, width = canny_edges.shape
     x_offset, y_offset = window_position
 
