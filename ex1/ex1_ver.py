@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 import cv2
 from matplotlib import pyplot as plt
@@ -46,7 +48,7 @@ def hough_transform(image_data, edges):
     diagonal = int(np.sqrt(height ** 2 + width ** 2))
 
     ds = np.arange(-diagonal, diagonal + 1, 1)
-    thetas = np.arange(-np.pi / 2, np.pi / 2, np.pi/180)
+    thetas = np.arange(-np.pi / 2, np.pi / 2, np.pi / 180)
 
     num_thetas = len(thetas)
     num_ds = len(ds)
@@ -110,16 +112,15 @@ def calculate_intersection(line1, line2):
 def find_intersections(lines, image_shape):
     """ Calculate intersections of all line pairs and store them in a dictionary. """
     intersections = {}
-    for i in range(len(lines)):
-        for j in range(i + 1, len(lines)):
-            pt = calculate_intersection(lines[i], lines[j])
-            if pt is not None:
-                x, y = pt
-                # Check if the intersection is within the bounds of the image
-                if 0 <= x < image_shape[1] and 0 <= y < image_shape[0]:
-                    # Store intersections in both possible orders to ensure easy lookup
-                    intersections[(lines[i], lines[j])] = (x, y)
-                    intersections[(lines[j], lines[i])] = (x, y)
+    for line1, line2 in itertools.combinations(lines, 2):
+        pt = calculate_intersection(line1, line2)
+        if pt is not None:
+            x, y = pt
+            # Check if the intersection is within the bounds of the image
+            if 0 <= x < image_shape[1] and 0 <= y < image_shape[0]:
+                # Store intersections in both possible orders to ensure easy lookup
+                intersections[(line1, line2)] = (x, y)
+                intersections[(line2, line1)] = (x, y)
     return intersections
 
 
@@ -144,10 +145,10 @@ def classify_triangle(pt1, pt2, pt3, line1, line2, line3):
         angle(line3, line1)
     ]
     # Triangle inequality check
-    if not (d1 + d2 > d3 and d2 + d3 > d1 and d3 + d1 > d2):
+    if not ((d1 + d2 > d3) and (d2 + d3 > d1) and (d3 + d1 > d2)):
         return 'not a triangle'
     # Classify as right triangle if any angle is close to 90 degrees
-    if any(np.isclose(ang, np.pi / 2, atol=0.01) for ang in angles):
+    if any(np.isclose(ang, np.pi / 2, atol=0.03) for ang in angles):
         return 'right'
     # Equilateral triangle check (all sides approximately equal)
     elif np.isclose(d1, d2, atol=2) and np.isclose(d2, d3, atol=2) and np.isclose(d1, d3, atol=2) and all(
@@ -178,14 +179,34 @@ def find_and_classify_triangles(intersections, lines):
                         triangle_type = classify_triangle(pt1, pt2, pt3, line1, line2, line3)
                         if triangle_type != 'other' and triangle_type != 'not a triangle':
                             triangles[triangle_type].append((pt1, pt2, pt3))
-                            triangle_lines[triangle_type].add(line1)
-                            triangle_lines[triangle_type].add(line2)
-                            triangle_lines[triangle_type].add(line3)
+                            triangle_lines[triangle_type].add((line1, pt3, pt1))
+                            triangle_lines[triangle_type].add((line2, pt1, pt2))
+                            triangle_lines[triangle_type].add((line3, pt2, pt3))
 
     return triangles, triangle_lines
 
 
-def color_edges_by_triangle(final_image, canny_edges, triangle_lines, voting_points, window_position):
+def line_points(start, end):
+    points = []
+    x1, y1 = start
+    x2, y2 = end
+    dx = x2 - x1
+    dy = y2 - y1
+    steps = max(abs(dx), abs(dy))
+
+    x_inc = dx / steps
+    y_inc = dy / steps
+
+    x, y = x1, y1
+    for _ in range(int(steps) + 1):
+        points.append((int(round(x)), int(round(y))))
+        x += x_inc
+        y += y_inc
+
+    return points
+
+
+def color_edges_by_triangle(final_image, canny_edges, triangle_lines, window_position):
     color_map = {
         'equilateral': (255, 0, 0),  # Blue
         'isosceles': (0, 255, 0),  # Green
@@ -195,19 +216,22 @@ def color_edges_by_triangle(final_image, canny_edges, triangle_lines, voting_poi
     y_offset, x_offset = window_position
 
     for triangle_type, lines in triangle_lines.items():
-        for line in lines:
-            points = voting_points[line]
+        for line_info in lines:
+            line_start = line_info[1]
+            line_end = line_info[2]
+            points = line_points(line_start, line_end)
             for x, y in points:
-                if 0 <= y + y_offset < final_image.shape[0] and 0 <= x + x_offset < final_image.shape[1]:
-                    final_image[y + y_offset, x + x_offset] = color_map[triangle_type]
-                # Color neighbors if they are white
-                for dy in range(-4, 5):  # Check a 10X10 neighborhood
-                    for dx in range(-4, 5):
-                        ny, nx = y + dy + y_offset, x + dx + x_offset
-                        if (0 <= ny < final_image.shape[0] and 0 <= nx < final_image.shape[1] and
-                                0 <= y + dy < height and 0 <= x + dx < width and
-                                canny_edges[y + dy, x + dx] == 255):
-                            final_image[ny, nx] = color_map[triangle_type]
+                nx, ny = x + x_offset, y + y_offset
+                if 0 <= ny < final_image.shape[0] and 0 <= nx < final_image.shape[1]:
+                    final_image[ny, nx] = color_map[triangle_type]
+                    # Optionally color neighbors if they are within edge boundaries and white
+                    for dy in range(-4, 5):  # Simple 3x3 neighborhood
+                        for dx in range(-4, 5):
+                            adj_y, adj_x = ny + dy, nx + dx
+                            if (0 <= adj_y < final_image.shape[0] and 0 <= adj_x < final_image.shape[1] and
+                                    0 <= y + dy < height and 0 <= x + dx < width and
+                                    canny_edges[y + dy, x + dx] == 255):
+                                final_image[adj_y, adj_x] = color_map[triangle_type]
 
     return final_image
 
@@ -218,13 +242,14 @@ def sliding_window(image, window_size, step_size):
             yield x, y, image[y: min(y + window_size[1], image.shape[0]), x: min(x + window_size[0], image.shape[1])]
 
 
-def draw_markers(image, lines, ds, thetas, color):
-    for rho, theta in lines:
-        rho_index = np.where(ds == rho)[0]
-        theta_index = np.where(thetas == theta)[0]
-        if rho_index.size > 0 and theta_index.size > 0:
-            cv2.rectangle(image, (theta_index[0] - 2, rho_index[0] - 2), (theta_index[0] + 2, rho_index[0] + 2), color,
-                          thickness=2, lineType=cv2.LINE_8)
+def draw_markers(image, line, ds, thetas, color):
+    rho = line[0]
+    theta = line[1]
+    rho_index = np.where(ds == rho)[0]
+    theta_index = np.where(thetas == theta)[0]
+    if rho_index.size > 0 and theta_index.size > 0:
+        cv2.rectangle(image, (theta_index[0] - 2, rho_index[0] - 2), (theta_index[0] + 2, rho_index[0] + 2), color,
+                      thickness=2, lineType=cv2.LINE_8)
 
 
 def build_images_dict():
@@ -275,6 +300,29 @@ def build_images_dict():
     return images_dict
 
 
+def draw_accumulator(accumulator, triangle_lines, ds, thetas):
+    norm_accumulator = cv2.normalize(accumulator, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
+    norm_accumulator = cv2.cvtColor(norm_accumulator, cv2.COLOR_GRAY2BGR)
+
+    # Convert sets to lists to access by index
+    equilateral_lines = list(triangle_lines['equilateral'])
+    isosceles_lines = list(triangle_lines['isosceles'])
+    right_lines = list(triangle_lines['right'])
+
+    # Draw markers for different types of triangle sides
+    if equilateral_lines:
+        for line_data in equilateral_lines:
+            draw_markers(norm_accumulator, line_data[0], ds, thetas, (255, 0, 0))  # Blue for equilateral
+    if isosceles_lines:
+        for line_data in isosceles_lines:
+            draw_markers(norm_accumulator, line_data[0], ds, thetas, (0, 255, 0))  # Green for isosceles
+    if right_lines:
+        for line_data in right_lines:
+            draw_markers(norm_accumulator, line_data[0], ds, thetas, (0, 0, 255))  # Red for right
+
+    return norm_accumulator
+
+
 images = build_images_dict()
 
 # Initialize a list to store all the lines detected across all windows
@@ -309,23 +357,34 @@ for img_name, img in images.items():
 
             intersections = find_intersections(lines, window.shape)
 
-            triangles, triangle_lines = find_and_classify_triangles(intersections, lines)
+            if len(intersections.keys()) == 6:
+                print(intersections.values())
+                # To visualize the intersections:
+                w = window.copy()
+                for x, y in intersections.values():
+                    cv2.circle(w, (x, y), radius=5, color=(255, 0, 0),
+                               thickness=-1)  # Draw red dots at intersections
+                plot('Intersections', w)
+                # lines_img = draw_lines(window.copy(), lines)
+                # plot(f'window {i}_{j}', lines_img)
 
-            norm_accumulator = cv2.normalize(accumulator, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
-            norm_accumulator = cv2.cvtColor(norm_accumulator, cv2.COLOR_GRAY2BGR)
-            # Draw markers for different types of triangle sides
-            draw_markers(norm_accumulator, triangle_lines['equilateral'], ds, thetas,
-                         (255, 0, 0))  # Blue for equilateral
-            draw_markers(norm_accumulator, triangle_lines['isosceles'], ds, thetas, (0, 255, 0))  # Green for isosceles
-            draw_markers(norm_accumulator, triangle_lines['right'], ds, thetas, (0, 0, 255))  # Red for right
+                triangles, triangle_lines = find_and_classify_triangles(intersections, lines)
 
-            if any(len(triangle_list) > 0 for triangle_list in triangles.values()):
-                # plot('ok', window)
-                plot(f'{img_name} hough transform (with color-coded triangle sides) \nwindow_{i}_{j}', norm_accumulator)
-                final_image = color_edges_by_triangle(final_image, window, triangle_lines, voting_points, (i, j))
-                # Print counts of each triangle type
-                for triangle_type, triangle_list in triangles.items():
-                    print(f"{triangle_type.capitalize()} triangles found in window {i},{j}: {len(triangle_list)}")
+                if any(len(triangle_list) > 0 for triangle_list in triangles.values()):
+                    norm_accumulator = draw_accumulator(accumulator, triangle_lines, ds, thetas)
+                    # plot('ok', window)
+                    plot(f'{img_name} hough transform (with color-coded triangle sides) \nwindow_{i}_{j}',
+                         norm_accumulator)
+                    window_color = color_edges_by_triangle(cv2.cvtColor(window, cv2.COLOR_GRAY2BGR), window,
+                                                           triangle_lines,
+                                                           (0, 0))
+
+                    final_image = color_edges_by_triangle(final_image, window, triangle_lines, (i, j))
+
+                    plot(f'traingles on window {i}_{j}', window_color)
+                    # Print counts of each triangle type
+                    for triangle_type, triangle_list in triangles.items():
+                        print(f"{triangle_type.capitalize()} triangles found in window {i},{j}: {len(triangle_list)}")
 
     # Draw all the lines accumulated across all windows
     lines_img = draw_lines(canny_edges.copy(), all_lines)
