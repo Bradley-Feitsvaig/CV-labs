@@ -48,7 +48,7 @@ def hough_transform(image_data, edges):
     diagonal = int(np.sqrt(height ** 2 + width ** 2))
 
     ds = np.arange(-diagonal, diagonal + 1, 1)
-    thetas = np.arange(-np.pi / 2, np.pi / 2, np.pi / 180)
+    thetas = np.arange(0, np.pi, np.pi / 180)
 
     num_thetas = len(thetas)
     num_ds = len(ds)
@@ -148,7 +148,7 @@ def classify_triangle(pt1, pt2, pt3, line1, line2, line3):
     if not ((d1 + d2 > d3) and (d2 + d3 > d1) and (d3 + d1 > d2)):
         return 'not a triangle'
     # Classify as right triangle if any angle is close to 90 degrees
-    if any(np.isclose(ang, np.pi / 2, atol=0.03) for ang in angles):
+    if any(np.isclose(ang, np.pi / 2, atol=np.pi / 90) for ang in angles):
         return 'right'
     # Equilateral triangle check (all sides approximately equal)
     elif np.isclose(d1, d2, atol=2) and np.isclose(d2, d3, atol=2) and np.isclose(d1, d3, atol=2) and all(
