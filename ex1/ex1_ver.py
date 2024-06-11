@@ -3,6 +3,8 @@ import cv2
 from matplotlib import pyplot as plt
 import time
 
+from numpy.lib.stride_tricks import sliding_window_view
+
 
 def plot(image_name, image):
     time.sleep(0.75)
@@ -21,58 +23,9 @@ def get_threshold(image, sigma=0.23):
 
 def detect_edges(image, low_threshold, high_threshold):
     grey_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(grey_image, (5, 5), 0)
+    blurred = cv2.GaussianBlur(grey_image, (3, 3), 1.5)
     edges = cv2.Canny(blurred, low_threshold, high_threshold)
     return edges
-
-
-def build_images_dict():
-    images_dict = {}
-    # four_triangles_example
-    # image = cv2.imread('four_triangles_example.png')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 150, 'd_threshold': 10,
-    #               'theta_threshold': 0.1, 'window_shape': (400, 300), 'step_shape': (300, 150)}
-    # images_dict['four_triangles_example'] = (image, image_data)
-    # flags1
-    image = cv2.imread('group_flags/flags2.jpg')
-    low_threshold, high_threshold = get_threshold(image)
-    image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-                  'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-                  'thetas_steps': np.pi / 180, 'edge_detection_threshold': 40, 'd_threshold': 10,
-                  'theta_threshold': 0.1, 'window_shape': (155, 90), 'step_shape': (155, 40)}
-    images_dict['flags1'] = (image, image_data)
-
-    # # il_570xN.3195615696_3srw
-    # image = cv2.imread('group_natural/il_570xN.3195615696_3srw.png')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
-    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
-    # images_dict['top-view-triangle-sandwiches-slate-with-tomatoes'] = (image, image_data)
-    #
-    # # t_signs2
-    # image = cv2.imread('group_signs/t_signs2.jpg')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
-    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
-    # images_dict['t_signs2'] = (image, image_data)
-    #
-    # # several-triangles
-    # image = cv2.imread('group_sketch/several-triangles.jpg')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
-    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
-    # images_dict['several-triangles'] = (image, image_data)
-
-    return images_dict
 
 
 def remove_close_lines(lines, d_threshold, theta_threshold):
@@ -92,8 +45,8 @@ def hough_transform(image_data, edges):
     height, width = edges.shape
     diagonal = int(np.sqrt(height ** 2 + width ** 2))
 
-    ds = np.arange(-diagonal, diagonal, image_data['ds_steps'])
-    thetas = np.arange(image_data['hough_min_theta'], image_data['hough_max_theta'], image_data['thetas_steps'])
+    ds = np.arange(-diagonal, diagonal + 1, 1)
+    thetas = np.arange(-np.pi / 2, np.pi / 2, np.pi/180)
 
     num_thetas = len(thetas)
     num_ds = len(ds)
@@ -121,7 +74,7 @@ def hough_transform(image_data, edges):
 
     lines = np.vstack([final_rho, final_theta]).T
     lines = remove_close_lines(lines, image_data['d_threshold'], image_data['theta_threshold'])
-    return lines, accumulator, voting_points, ds, thetas
+    return lines[:4], accumulator, voting_points, ds, thetas
 
 
 def draw_lines(image, lines):
@@ -239,7 +192,7 @@ def color_edges_by_triangle(final_image, canny_edges, triangle_lines, voting_poi
         'right': (0, 0, 255),  # Red
     }
     height, width = canny_edges.shape
-    x_offset, y_offset = window_position
+    y_offset, x_offset = window_position
 
     for triangle_type, lines in triangle_lines.items():
         for line in lines:
@@ -274,7 +227,52 @@ def draw_markers(image, lines, ds, thetas, color):
                           thickness=2, lineType=cv2.LINE_8)
 
 
-# Sliding window parameters
+def build_images_dict():
+    images_dict = {}
+    # four_triangles_example
+    # image = cv2.imread('four_triangles_example.png')
+    # low_threshold, high_threshold = get_threshold(image)
+    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
+    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 150, 'd_threshold': 10,
+    #               'theta_threshold': 0.1, 'window_shape': (400, 300), 'step_shape': (300, 150)}
+    # images_dict['four_triangles_example'] = (image, image_data)
+    # flags1
+    # image = cv2.imread('group_flags/flags2.jpg')
+    # low_threshold, high_threshold = get_threshold(image)
+    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
+    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 40, 'd_threshold': 10,
+    #               'theta_threshold': 0.1, 'window_shape': (155, 90), 'step_shape': (155, 40)}
+    # images_dict['flags1'] = (image, image_data)
+
+    # # il_570xN.3195615696_3srw
+    # image = cv2.imread('group_natural/il_570xN.3195615696_3srw.png')
+    # low_threshold, high_threshold = get_threshold(image)
+    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
+    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
+    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
+    # images_dict['top-view-triangle-sandwiches-slate-with-tomatoes'] = (image, image_data)
+    #
+    # # t_signs2
+    # image = cv2.imread('group_signs/t_signs2.jpg')
+    # low_threshold, high_threshold = get_threshold(image)
+    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
+    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
+    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
+    # images_dict['t_signs2'] = (image, image_data)
+    #
+    # several-triangles
+    image = cv2.imread('group_sketch/several-triangles.jpg')
+    low_threshold, high_threshold = get_threshold(image)
+    image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+                  'edge_detection_threshold': 50, 'd_threshold': 20,
+                  'theta_threshold': 0.5, 'window_shape': (125, 110), 'step_shape': (25, 40)}
+    images_dict['several-triangles'] = (image, image_data)
+
+    return images_dict
 
 
 images = build_images_dict()
@@ -291,35 +289,43 @@ for img_name, img in images.items():
 
     final_image = cv2.cvtColor(canny_edges, cv2.COLOR_GRAY2BGR)
 
-    for x, y, window in sliding_window(canny_edges, img[1]['window_shape'], img[1]['step_shape']):
-        lines, accumulator, voting_points, ds, thetas = hough_transform(img[1], window)
+    canny_edges_windows = sliding_window_view(canny_edges, (img[1]['window_shape'][0], img[1]['window_shape'][1]))
 
-        # Adjust the lines' coordinates based on the window position
-        adjusted_lines = []
-        for rho, theta in lines:
-            rho_adj = rho + (x * np.cos(theta) + y * np.sin(theta))
-            adjusted_lines.append((rho_adj, theta))
+    for i in range(0, canny_edges_windows.shape[0], img[1]['step_shape'][0]):
+        for j in range(0, canny_edges_windows.shape[1], img[1]['step_shape'][1]):
+            window = canny_edges_windows[i, j]
+            # plot('ok', window)
 
-        # Accumulate adjusted lines
-        all_lines.extend(adjusted_lines)
+            lines, accumulator, voting_points, ds, thetas = hough_transform(img[1], window)
 
-        intersections = find_intersections(lines, window.shape)
+            # Adjust the lines' coordinates based on the window position
+            adjusted_lines = []
+            for rho, theta in lines:
+                rho_adj = rho + (j * np.cos(theta) + i * np.sin(theta))
+                adjusted_lines.append((rho_adj, theta))
 
-        triangles, triangle_lines = find_and_classify_triangles(intersections, lines)
+            # Accumulate adjusted lines
+            all_lines.extend(adjusted_lines)
 
-        norm_accumulator = cv2.normalize(accumulator, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
-        norm_accumulator = cv2.cvtColor(norm_accumulator, cv2.COLOR_GRAY2BGR)
-        # Draw markers for different types of triangle sides
-        draw_markers(norm_accumulator, triangle_lines['equilateral'], ds, thetas, (255, 0, 0))  # Blue for equilateral
-        draw_markers(norm_accumulator, triangle_lines['isosceles'], ds, thetas, (0, 255, 0))  # Green for isosceles
-        draw_markers(norm_accumulator, triangle_lines['right'], ds, thetas, (0, 0, 255))  # Red for right
+            intersections = find_intersections(lines, window.shape)
 
-        if any(len(triangle_list) > 0 for triangle_list in triangles.values()):
-            plot(f'{img_name} hough transform (with color-coded triangle sides) \nwindow_{x}_{y}', norm_accumulator)
-            final_image = color_edges_by_triangle(final_image, window, triangle_lines, voting_points, (x, y))
-            # Print counts of each triangle type
-            for triangle_type, triangle_list in triangles.items():
-                print(f"{triangle_type.capitalize()} triangles found in window {x},{y}: {len(triangle_list)}")
+            triangles, triangle_lines = find_and_classify_triangles(intersections, lines)
+
+            norm_accumulator = cv2.normalize(accumulator, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8UC1)
+            norm_accumulator = cv2.cvtColor(norm_accumulator, cv2.COLOR_GRAY2BGR)
+            # Draw markers for different types of triangle sides
+            draw_markers(norm_accumulator, triangle_lines['equilateral'], ds, thetas,
+                         (255, 0, 0))  # Blue for equilateral
+            draw_markers(norm_accumulator, triangle_lines['isosceles'], ds, thetas, (0, 255, 0))  # Green for isosceles
+            draw_markers(norm_accumulator, triangle_lines['right'], ds, thetas, (0, 0, 255))  # Red for right
+
+            if any(len(triangle_list) > 0 for triangle_list in triangles.values()):
+                # plot('ok', window)
+                plot(f'{img_name} hough transform (with color-coded triangle sides) \nwindow_{i}_{j}', norm_accumulator)
+                final_image = color_edges_by_triangle(final_image, window, triangle_lines, voting_points, (i, j))
+                # Print counts of each triangle type
+                for triangle_type, triangle_list in triangles.items():
+                    print(f"{triangle_type.capitalize()} triangles found in window {i},{j}: {len(triangle_list)}")
 
     # Draw all the lines accumulated across all windows
     lines_img = draw_lines(canny_edges.copy(), all_lines)
