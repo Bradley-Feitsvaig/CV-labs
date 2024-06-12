@@ -276,21 +276,21 @@ def build_images_dict():
     #               'theta_threshold': np.pi / 6, 'window_shape': (180, 410), 'step_shape': (20, 25)}
     # images_dict['overlapping-triangles-with-screwdriven-holes-wood-art11'] = (image, image_data)
 
-    # t_signs1
+    #t_signs1
     image = cv2.imread('group_signs/t_signs1.jpg')
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-                  'edge_detection_threshold': 110, 'd_threshold': 0.5, 'max_lines_number': 9,
-                  'theta_threshold': np.pi / 30, 'window_shape': (275, 250), 'step_shape': (75, 30)}
+                  'edge_detection_threshold': 110, 'd_threshold': 10, 'max_lines_number': 5,
+                  'theta_threshold': np.pi / 30, 'window_shape': (240, 240), 'step_shape': (30, 30)}
     images_dict['t_signs1'] = (image, image_data)
 
     # several-triangles
-    # image = cv2.imread('group_sketch/several-triangles.jpg')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'edge_detection_threshold': 50, 'd_threshold': 8, 'max_lines_number': 4,
-    #               'theta_threshold': np.pi / 6, 'window_shape': (125, 110), 'step_shape': (25, 40)}
-    # images_dict['several-triangles'] = (image, image_data)
+    image = cv2.imread('group_sketch/several-triangles.jpg')
+    low_threshold, high_threshold = get_threshold(image)
+    image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+                  'edge_detection_threshold': 50, 'd_threshold': 8, 'max_lines_number': 4,
+                  'theta_threshold': np.pi / 6, 'window_shape': (125, 110), 'step_shape': (25, 40)}
+    images_dict['several-triangles'] = (image, image_data)
 
     return images_dict
 
@@ -326,7 +326,7 @@ def calculate_surface_area(triangle):
     return np.sqrt(s * (s - a) * (s - b) * (s - c))
 
 
-def remove_small_triangles(triangles, threshold=1000):
+def remove_small_triangles(triangles, threshold=2000):
     return [triangle for triangle in triangles if calculate_surface_area(triangle) > threshold]
 
 
