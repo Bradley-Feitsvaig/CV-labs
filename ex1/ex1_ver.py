@@ -1,18 +1,16 @@
 import itertools
-
 import numpy as np
 import cv2
 from matplotlib import pyplot as plt
-import time
-
 from numpy.lib.stride_tricks import sliding_window_view
 
 
 def plot(image_name, image):
-    time.sleep(0.75)
+    plt.figure(figsize=(12, 12), dpi=200)
     plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     plt.axis('off')
-    plt.title(image_name)
+    plt.title(image_name, fontsize=20)
+    plt.tight_layout()
     plt.show()
 
 
@@ -76,7 +74,14 @@ def hough_transform(image_data, edges):
 
     lines = np.vstack([final_rho, final_theta]).T
     lines = remove_close_lines(lines, image_data['d_threshold'], image_data['theta_threshold'])
-    return lines[:4], accumulator, voting_points, ds, thetas
+    lines = [(line, len(voting_points[tuple(line)])) for line in lines]
+    lines.sort(key=lambda x: x[1], reverse=True)
+    lines = [item[0] for item in lines]
+
+    if 'max_lines_number' in image_data.keys():
+        lines = lines[:image_data['max_lines_number']]
+
+    return lines, accumulator, voting_points, ds, thetas
 
 
 def draw_lines(image, lines):
@@ -90,7 +95,7 @@ def draw_lines(image, lines):
         y1 = int(y0 + len(image[1]) * (a))
         x2 = int(x0 - len(image[0]) * (-b))
         y2 = int(y0 - len(image[1]) * (a))
-        cv2.line(line_img, (x1, y1), (x2, y2), (255, 255, 255), 2)
+        cv2.line(line_img, (x1, y1), (x2, y2), (255, 255, 255), 1)
     return line_img
 
 
@@ -224,15 +229,14 @@ def color_edges_by_triangle(final_image, canny_edges, triangle_lines, window_pos
                 nx, ny = x + x_offset, y + y_offset
                 if 0 <= ny < final_image.shape[0] and 0 <= nx < final_image.shape[1]:
                     final_image[ny, nx] = color_map[triangle_type]
-                    # Optionally color neighbors if they are within edge boundaries and white
-                    for dy in range(-4, 5):  # Simple 3x3 neighborhood
-                        for dx in range(-4, 5):
+                    # color neighbors if they are within edge boundaries and white
+                    for dy in range(-5, 6):
+                        for dx in range(-5, 6):
                             adj_y, adj_x = ny + dy, nx + dx
                             if (0 <= adj_y < final_image.shape[0] and 0 <= adj_x < final_image.shape[1] and
                                     0 <= y + dy < height and 0 <= x + dx < width and
                                     canny_edges[y + dy, x + dx] == 255):
                                 final_image[adj_y, adj_x] = color_map[triangle_type]
-
     return final_image
 
 
@@ -248,53 +252,43 @@ def draw_markers(image, line, ds, thetas, color):
     rho_index = np.where(ds == rho)[0]
     theta_index = np.where(thetas == theta)[0]
     if rho_index.size > 0 and theta_index.size > 0:
-        cv2.rectangle(image, (theta_index[0] - 2, rho_index[0] - 2), (theta_index[0] + 2, rho_index[0] + 2), color,
+        cv2.rectangle(image, (theta_index[0] - 5, rho_index[0] - 5), (theta_index[0] + 5, rho_index[0] + 5), color,
                       thickness=2, lineType=cv2.LINE_8)
 
 
 def build_images_dict():
     images_dict = {}
-    # four_triangles_example
-    # image = cv2.imread('four_triangles_example.png')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 150, 'd_threshold': 10,
-    #               'theta_threshold': 0.1, 'window_shape': (400, 300), 'step_shape': (300, 150)}
-    # images_dict['four_triangles_example'] = (image, image_data)
-    # flags1
+
+    # # flags1
     # image = cv2.imread('group_flags/flags2.jpg')
     # low_threshold, high_threshold = get_threshold(image)
     # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 40, 'd_threshold': 10,
-    #               'theta_threshold': 0.1, 'window_shape': (155, 90), 'step_shape': (155, 40)}
-    # images_dict['flags1'] = (image, image_data)
+    #               'edge_detection_threshold': 110, 'd_threshold': 1, 'max_lines_number': 13,
+    #               'theta_threshold': np.pi/60, 'window_shape': (185, 250), 'step_shape': (60, 120)}
+    # images_dict['flags2'] = (image, image_data)
+    #
+    # # top-view-triangle-sandwiches-slate-with-tomatoes
+    # image = cv2.imread('group_natural/overlapping-triangles-with-screwdriven-holes-wood-art11.jpg')
+    # low_threshold, high_threshold = get_threshold(image)
+    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+    #               'edge_detection_threshold': 50, 'd_threshold': 30, 'max_lines_number': 6,
+    #               'theta_threshold': np.pi/6, 'window_shape': (200, 466), 'step_shape': (20, 466)}
+    # images_dict['overlapping-triangles-with-screwdriven-holes-wood-art11'] = (image, image_data)
 
-    # # il_570xN.3195615696_3srw
-    # image = cv2.imread('group_natural/il_570xN.3195615696_3srw.png')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
-    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
-    # images_dict['top-view-triangle-sandwiches-slate-with-tomatoes'] = (image, image_data)
-    #
-    # # t_signs2
-    # image = cv2.imread('group_signs/t_signs2.jpg')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'hough_min_theta': -np.pi / 2, 'hough_max_theta': np.pi / 2, 'ds_steps': 1,
-    #               'thetas_steps': np.pi / 180, 'edge_detection_threshold': 50, 'd_threshold': 10,
-    #               'theta_threshold': 0.1, 'window_shape': (150, 100), 'step_shape': (30, 30)}
-    # images_dict['t_signs2'] = (image, image_data)
-    #
+    # t_signs2
+    image = cv2.imread('group_signs/t_signs1.jpg')
+    low_threshold, high_threshold = get_threshold(image)
+    image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+                  'edge_detection_threshold': 110, 'd_threshold': 1, 'max_lines_number': 9,
+                  'theta_threshold': np.pi/6, 'window_shape': (275, 250), 'step_shape': (75, 30)}
+    images_dict['t_signs1'] = (image, image_data)
+
     # several-triangles
     image = cv2.imread('group_sketch/several-triangles.jpg')
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-                  'edge_detection_threshold': 50, 'd_threshold': 20,
-                  'theta_threshold': 0.5, 'window_shape': (125, 110), 'step_shape': (25, 40)}
+                  'edge_detection_threshold': 50, 'd_threshold': 10, 'max_lines_number': 4,
+                  'theta_threshold': np.pi/6, 'window_shape': (125, 110), 'step_shape': (25, 40)}
     images_dict['several-triangles'] = (image, image_data)
 
     return images_dict
@@ -325,10 +319,8 @@ def draw_accumulator(accumulator, triangle_lines, ds, thetas):
 
 images = build_images_dict()
 
-# Initialize a list to store all the lines detected across all windows
-all_lines = []
-
 for img_name, img in images.items():
+    all_lines = []
     print(f'{img_name} triangle detection')
     plot(f'{img_name} input image', img[0])
 
@@ -342,52 +334,43 @@ for img_name, img in images.items():
     for i in range(0, canny_edges_windows.shape[0], img[1]['step_shape'][0]):
         for j in range(0, canny_edges_windows.shape[1], img[1]['step_shape'][1]):
             window = canny_edges_windows[i, j]
-            # plot('ok', window)
-
+            # plot('ok',window)
             lines, accumulator, voting_points, ds, thetas = hough_transform(img[1], window)
 
-            # Adjust the lines' coordinates based on the window position
-            adjusted_lines = []
-            for rho, theta in lines:
-                rho_adj = rho + (j * np.cos(theta) + i * np.sin(theta))
-                adjusted_lines.append((rho_adj, theta))
 
-            # Accumulate adjusted lines
-            all_lines.extend(adjusted_lines)
 
             intersections = find_intersections(lines, window.shape)
 
-            if len(intersections.keys()) == 6:
-                print(intersections.values())
+            if len(intersections.keys()) >= 6:
+                # print(intersections.values())
                 # To visualize the intersections:
-                w = window.copy()
-                for x, y in intersections.values():
-                    cv2.circle(w, (x, y), radius=5, color=(255, 0, 0),
-                               thickness=-1)  # Draw red dots at intersections
-                plot('Intersections', w)
+                # w = window.copy()
+                # for x, y in intersections.values():
+                #     cv2.circle(w, (x, y), radius=5, color=(255, 0, 0),
+                #                thickness=-1)  # Draw red dots at intersections
+                # plot('Intersections', w)
                 # lines_img = draw_lines(window.copy(), lines)
                 # plot(f'window {i}_{j}', lines_img)
 
                 triangles, triangle_lines = find_and_classify_triangles(intersections, lines)
 
                 if any(len(triangle_list) > 0 for triangle_list in triangles.values()):
-                    norm_accumulator = draw_accumulator(accumulator, triangle_lines, ds, thetas)
-                    # plot('ok', window)
-                    plot(f'{img_name} hough transform (with color-coded triangle sides) \nwindow_{i}_{j}',
-                         norm_accumulator)
-                    window_color = color_edges_by_triangle(cv2.cvtColor(window, cv2.COLOR_GRAY2BGR), window,
-                                                           triangle_lines,
-                                                           (0, 0))
+                    # lines_img = draw_lines(window.copy(), lines)
+                    # plot(f'{img_name} detected lines\n window_{i}_{j}', lines_img)
+                    #
+                    # norm_accumulator = draw_accumulator(accumulator, triangle_lines, ds, thetas)
+                    # # plot('ok', window)
+                    # plot(f'{img_name}\n hough transform (with color-coded triangle sides)\n window_{i}_{j}',
+                    #      norm_accumulator)
+                    # window_color = color_edges_by_triangle(cv2.cvtColor(window, cv2.COLOR_GRAY2BGR), window,
+                    #                                        triangle_lines,
+                    #                                        (0, 0))
 
                     final_image = color_edges_by_triangle(final_image, window, triangle_lines, (i, j))
 
-                    plot(f'traingles on window {i}_{j}', window_color)
+                    # plot(f'traingles on window {i}_{j}', window_color)
                     # Print counts of each triangle type
-                    for triangle_type, triangle_list in triangles.items():
-                        print(f"{triangle_type.capitalize()} triangles found in window {i},{j}: {len(triangle_list)}")
-
-    # Draw all the lines accumulated across all windows
-    lines_img = draw_lines(canny_edges.copy(), all_lines)
-    plot(f'{img_name} detected lines', lines_img)
+                    # for triangle_type, triangle_list in triangles.items():
+                    #     print(f"{triangle_type.capitalize()} triangles found in window {i},{j}: {len(triangle_list)}")
 
     plot(f'{img_name} Detected triangles (color-coded)', final_image)
