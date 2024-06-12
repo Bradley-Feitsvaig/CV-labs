@@ -272,7 +272,7 @@ def build_images_dict():
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'edge_detection_threshold': 50, 'd_threshold': 30, 'max_lines_number': 6,
-                  'theta_threshold': np.pi / 6, 'window_shape': (200, 466), 'step_shape': (20, 466)}
+                  'theta_threshold': np.pi / 6, 'window_shape': (180, 410), 'step_shape': (20, 25)}
     images_dict['overlapping-triangles-with-screwdriven-holes-wood-art11'] = (image, image_data)
 
     # t_signs1
