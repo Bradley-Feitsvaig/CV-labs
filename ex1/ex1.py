@@ -21,9 +21,9 @@ def get_threshold(image, sigma=0.35):
     return lt, ht
 
 
-def detect_edges(image, low_threshold, high_threshold):
+def detect_edges(image, low_threshold, high_threshold, sigmax):
     grey_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(grey_image, (3, 3), 1.75)
+    blurred = cv2.GaussianBlur(grey_image, (3, 3), sigmax)
     edges = cv2.Canny(blurred, low_threshold, high_threshold)
     return edges
 
@@ -266,7 +266,7 @@ def build_images_dict():
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'edge_detection_threshold': 40, 'd_threshold': 1, 'max_lines_number': 6,
                   'theta_threshold': np.pi / 8, 'window_shape': (100, 160), 'step_shape':(30,30),
-                  'smallest_triangle': 1000}
+                  'smallest_triangle': 1000, 'sigmax': 1.75}
     images_dict['flags2'] = (image, image_data)
 
     # overlapping-triangles-with-screwdriven-holes-wood-art11
@@ -275,16 +275,16 @@ def build_images_dict():
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'edge_detection_threshold': 50, 'd_threshold': 40, 'max_lines_number': 6,
                   'theta_threshold': np.pi / 6, 'window_shape': (220, 420), 'step_shape': (40, 40),
-                  'smallest_triangle': 1000}
+                  'smallest_triangle': 1000, 'sigmax': 1.5}
     images_dict['overlapping-triangles-with-screwdriven-holes-wood-art11'] = (image, image_data)
 
     # t_signs1
     image = cv2.imread('group_signs/t_signs1.jpg')
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-                  'edge_detection_threshold': 110, 'd_threshold': 10, 'max_lines_number': 5,
+                  'edge_detection_threshold': 110, 'd_threshold': 0.5, 'max_lines_number': 9,
                   'theta_threshold': np.pi / 30, 'window_shape': (240, 240), 'step_shape': (30, 30),
-                  'smallest_triangle': 2000}
+                  'smallest_triangle': 2000, 'sigmax': 1.5}
     images_dict['t_signs1'] = (image, image_data)
 
     # several-triangles
@@ -293,7 +293,7 @@ def build_images_dict():
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'edge_detection_threshold': 50, 'd_threshold': 8, 'max_lines_number': 4,
                   'theta_threshold': np.pi / 6, 'window_shape': (125, 110), 'step_shape': (25, 40),
-                  'smallest_triangle': 2000}
+                  'smallest_triangle': 2000, 'sigmax': 1.5}
     images_dict['several-triangles'] = (image, image_data)
 
     return images_dict
@@ -341,7 +341,8 @@ def find_triangles(images):
         edges_im_name = f'{img_name} edges map'
 
         plot(im_name, img[0])
-        canny_edges = detect_edges(img[0], img[1]['canny_low_threshold'], img[1]['canny_high_threshold'])
+        canny_edges = detect_edges(img[0], img[1]['canny_low_threshold'], img[1]['canny_high_threshold'],
+                                   img[1]['sigmax'])
         final_image = cv2.cvtColor(canny_edges, cv2.COLOR_GRAY2BGR)
         plot(edges_im_name, canny_edges)
 
