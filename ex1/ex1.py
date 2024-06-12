@@ -264,16 +264,16 @@ def build_images_dict():
     image = cv2.imread('group_flags/flags2.jpg')
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-                  'edge_detection_threshold': 50, 'd_threshold': 5, 'max_lines_number': 8,
-                  'theta_threshold': np.pi / 8, 'window_shape': (100, 160), 'step_shape': (30, 30),
-                  'smallest_triangle': 1500}
+                  'edge_detection_threshold': 40, 'd_threshold': 1, 'max_lines_number': 6,
+                  'theta_threshold': np.pi / 8, 'window_shape': (100, 160), 'step_shape':(30,30),
+                  'smallest_triangle': 1000}
     images_dict['flags2'] = (image, image_data)
 
     # overlapping-triangles-with-screwdriven-holes-wood-art11
     image = cv2.imread('group_natural/overlapping-triangles-with-screwdriven-holes-wood-art11.jpg')
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-                  'edge_detection_threshold': 50, 'd_threshold': 40, 'max_lines_number': 9,
+                  'edge_detection_threshold': 50, 'd_threshold': 40, 'max_lines_number': 6,
                   'theta_threshold': np.pi / 6, 'window_shape': (220, 420), 'step_shape': (40, 40),
                   'smallest_triangle': 1000}
     images_dict['overlapping-triangles-with-screwdriven-holes-wood-art11'] = (image, image_data)
@@ -283,8 +283,8 @@ def build_images_dict():
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'edge_detection_threshold': 110, 'd_threshold': 10, 'max_lines_number': 5,
-                  'theta_threshold': np.pi / 30, 'window_shape': (240, 240), 'step_shape': (34, 34),
-                  'smallest_triangle': 1000}
+                  'theta_threshold': np.pi / 30, 'window_shape': (240, 240), 'step_shape': (30, 30),
+                  'smallest_triangle': 2000}
     images_dict['t_signs1'] = (image, image_data)
 
     # several-triangles
