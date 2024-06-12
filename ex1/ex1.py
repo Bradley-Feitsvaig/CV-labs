@@ -23,7 +23,7 @@ def get_threshold(image, sigma=0.35):
 
 def detect_edges(image, low_threshold, high_threshold):
     grey_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.GaussianBlur(grey_image, (3, 3), 1.5)
+    blurred = cv2.GaussianBlur(grey_image, (3, 3), 1.75)
     edges = cv2.Canny(blurred, low_threshold, high_threshold)
     return edges
 
@@ -85,7 +85,7 @@ def hough_transform(image_data, edges):
 
 
 def draw_lines(image, lines):
-    line_len = len(image[0]) + len(image[1])
+    line_len = distance((0, 0), (len(image[0]), len(image[1])))
     line_img = cv2.cvtColor(image.copy(), cv2.COLOR_GRAY2BGR)
     for rho, theta in lines:
         a = np.cos(theta)
@@ -260,28 +260,31 @@ def draw_markers(image, line, ds, thetas, color):
 def build_images_dict():
     images_dict = {}
 
-    # # flags1
-    # image = cv2.imread('group_flags/flags1.jpg')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'edge_detection_threshold': 60, 'd_threshold': 1, 'max_lines_number': 6,
-    #               'theta_threshold': np.pi / 6, 'window_shape': (100, 150), 'step_shape': (60, 20)}
-    # images_dict['flags1'] = (image, image_data)
+    # flags2
+    image = cv2.imread('group_flags/flags2.jpg')
+    low_threshold, high_threshold = get_threshold(image)
+    image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+                  'edge_detection_threshold': 50, 'd_threshold': 5, 'max_lines_number': 8,
+                  'theta_threshold': np.pi / 8, 'window_shape': (100, 160), 'step_shape': (30, 30),
+                  'smallest_triangle': 1500}
+    images_dict['flags2'] = (image, image_data)
 
     # overlapping-triangles-with-screwdriven-holes-wood-art11
-    # image = cv2.imread('group_natural/overlapping-triangles-with-screwdriven-holes-wood-art11.jpg')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'edge_detection_threshold': 50, 'd_threshold': 30, 'max_lines_number': 6,
-    #               'theta_threshold': np.pi / 6, 'window_shape': (180, 410), 'step_shape': (20, 25)}
-    # images_dict['overlapping-triangles-with-screwdriven-holes-wood-art11'] = (image, image_data)
+    image = cv2.imread('group_natural/overlapping-triangles-with-screwdriven-holes-wood-art11.jpg')
+    low_threshold, high_threshold = get_threshold(image)
+    image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+                  'edge_detection_threshold': 50, 'd_threshold': 40, 'max_lines_number': 9,
+                  'theta_threshold': np.pi / 6, 'window_shape': (220, 420), 'step_shape': (40, 40),
+                  'smallest_triangle': 1000}
+    images_dict['overlapping-triangles-with-screwdriven-holes-wood-art11'] = (image, image_data)
 
-    #t_signs1
+    # t_signs1
     image = cv2.imread('group_signs/t_signs1.jpg')
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'edge_detection_threshold': 110, 'd_threshold': 10, 'max_lines_number': 5,
-                  'theta_threshold': np.pi / 30, 'window_shape': (240, 240), 'step_shape': (30, 30)}
+                  'theta_threshold': np.pi / 30, 'window_shape': (240, 240), 'step_shape': (34, 34),
+                  'smallest_triangle': 1000}
     images_dict['t_signs1'] = (image, image_data)
 
     # several-triangles
@@ -289,7 +292,8 @@ def build_images_dict():
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
                   'edge_detection_threshold': 50, 'd_threshold': 8, 'max_lines_number': 4,
-                  'theta_threshold': np.pi / 6, 'window_shape': (125, 110), 'step_shape': (25, 40)}
+                  'theta_threshold': np.pi / 6, 'window_shape': (125, 110), 'step_shape': (25, 40),
+                  'smallest_triangle': 2000}
     images_dict['several-triangles'] = (image, image_data)
 
     return images_dict
@@ -326,7 +330,7 @@ def calculate_surface_area(triangle):
     return np.sqrt(s * (s - a) * (s - b) * (s - c))
 
 
-def remove_small_triangles(triangles, threshold=2000):
+def remove_small_triangles(triangles, threshold):
     return [triangle for triangle in triangles if calculate_surface_area(triangle) > threshold]
 
 
@@ -345,12 +349,14 @@ def find_triangles(images):
         for i in range(0, canny_edges_windows.shape[0], img[1]['step_shape'][0]):
             for j in range(0, canny_edges_windows.shape[1], img[1]['step_shape'][1]):
                 window = canny_edges_windows[i, j]
+                # plot('', window)
                 lines, accumulator, ds, thetas = hough_transform(img[1], window)
                 intersections = find_intersections(lines, window.shape)
 
                 if len(intersections.keys()) >= 6:
                     triangles, triangle_lines = find_and_classify_triangles(intersections, lines)
-                    triangles = {key: remove_small_triangles(value) for key, value in triangles.items()}
+                    triangles = {key: remove_small_triangles(value, img[1]['smallest_triangle']) for key, value in
+                                 triangles.items()}
                     if any(len(triangle_list) > 0 for triangle_list in triangles.values()):
                         acc_name = f'{img_name}\n hough transform (with color-coded triangle sides)\n window_{i}_{j}'
                         lines_name = f'{img_name} detected lines\n window_{i}_{j}'
