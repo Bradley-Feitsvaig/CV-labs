@@ -260,41 +260,41 @@ def draw_markers(image, line, ds, thetas, color):
 def build_images_dict():
     images_dict = {}
 
-    # # flags2
-    # image = cv2.imread('group_flags/flags2.jpg')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'edge_detection_threshold': 40, 'd_threshold': 1, 'max_lines_number': 6,
-    #               'theta_threshold': np.pi / 8, 'window_shape': (100, 160), 'step_shape':(30,30),
-    #               'smallest_triangle': 1000,'canny_size': (3,3), 'sigmax': 1.75}
-    # images_dict['flags2'] = (image, image_data)
-    #
-    # # overlapping-triangles-with-screwdriven-holes-wood-art11
-    # image = cv2.imread('group_natural/overlapping-triangles-with-screwdriven-holes-wood-art11.jpg')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'edge_detection_threshold': 50, 'd_threshold': 40, 'max_lines_number': 6,
-    #               'theta_threshold': np.pi / 6, 'window_shape': (220, 420), 'step_shape': (40, 40),
-    #               'smallest_triangle': 1000,'canny_size': (3,3), 'sigmax': 1.5}
-    # images_dict['overlapping-triangles-with-screwdriven-holes-wood-art11'] = (image, image_data)
+    # flags2
+    image = cv2.imread('group_flags/flags2.jpg')
+    low_threshold, high_threshold = get_threshold(image)
+    image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+                  'edge_detection_threshold': 43, 'd_threshold': 1, 'max_lines_number': 5,
+                  'theta_threshold': np.pi / 8, 'window_shape': (130, 200), 'step_shape': (24, 30),
+                  'smallest_triangle': 2000, 'canny_size': (3, 3), 'sigmax': 2}
+    images_dict['flags2'] = (image, image_data)
+
+    # top-view-triangle-sandwiches-slate-with-tomatoes
+    image = cv2.imread('group_natural/top-view-triangle-sandwiches-slate-with-tomatoes_23-2148640143.png')
+    low_threshold, high_threshold = get_threshold(image)
+    image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+                  'edge_detection_threshold': 50, 'd_threshold': 20, 'max_lines_number': 6,
+                  'theta_threshold': np.pi / 6, 'window_shape': (275, 180), 'step_shape': (140, 140),
+                  'smallest_triangle': 1000, 'canny_size': (9, 9), 'sigmax': 3}
+    images_dict['overlapping-triangles-with-screwdriven-holes-wood-art11'] = (image, image_data)
 
     # t_signs1
     image = cv2.imread('group_signs/t_signs1.jpg')
     low_threshold, high_threshold = get_threshold(image)
     image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-                  'edge_detection_threshold': 110, 'd_threshold': 10, 'max_lines_number': 6,
-                  'theta_threshold': np.pi / 6, 'window_shape': (240, 240), 'step_shape': (34, 34),
+                  'edge_detection_threshold': 100, 'd_threshold': 10, 'max_lines_number': 9,
+                  'theta_threshold': np.pi / 6, 'window_shape': (220, 220), 'step_shape': (34, 30),
                   'smallest_triangle': 2000, 'canny_size': (5, 5), 'sigmax': 1.5}
     images_dict['t_signs1'] = (image, image_data)
 
-    # # several-triangles
-    # image = cv2.imread('group_sketch/several-triangles.jpg')
-    # low_threshold, high_threshold = get_threshold(image)
-    # image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
-    #               'edge_detection_threshold': 50, 'd_threshold': 8, 'max_lines_number': 4,
-    #               'theta_threshold': np.pi / 6, 'window_shape': (125, 110), 'step_shape': (25, 40),
-    #               'smallest_triangle': 2000,'canny_size': (3,3), 'sigmax': 1.5}
-    # images_dict['several-triangles'] = (image, image_data)
+    # several-triangles
+    image = cv2.imread('group_sketch/several-triangles.jpg')
+    low_threshold, high_threshold = get_threshold(image)
+    image_data = {'canny_low_threshold': low_threshold, 'canny_high_threshold': high_threshold,
+                  'edge_detection_threshold': 50, 'd_threshold': 8, 'max_lines_number': 4,
+                  'theta_threshold': np.pi / 6, 'window_shape': (125, 110), 'step_shape': (25, 40),
+                  'smallest_triangle': 2000, 'canny_size': (3, 3), 'sigmax': 1.5}
+    images_dict['several-triangles'] = (image, image_data)
 
     return images_dict
 
