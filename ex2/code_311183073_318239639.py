@@ -57,7 +57,7 @@ def plot_key_points(image1, key_points1, image2, key_points2, images_header):
     image1_with_key_points = cv2.drawKeypoints(image1, key_points1, None, color=(0, 0, 255))
     image2_with_key_points = cv2.drawKeypoints(image2, key_points2, None, color=(0, 0, 255))
 
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(20, 10))
     plt.subplot(1, 2, 1)
     plt.imshow(cv2.cvtColor(image1_with_key_points, cv2.COLOR_BGR2RGB))
     plt.title(f'{images_header} in Image 1')
@@ -155,7 +155,7 @@ def plot_matches(image1, key_points1, image2, key_points2, matches, plot_title):
         # Draw yellow dashed lines between key_points
         draw_dashed_line(output_image, pt1, pt2)
 
-    plt.figure(figsize=(15, 7))
+    plt.figure(figsize=(20, 10))
     plt.imshow(cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB))
     plt.title(plot_title)
     plt.show()
@@ -172,7 +172,7 @@ def get_essential_matrix(matched_key_points1, matched_key_points2, k):
     matched_key_points1 = np.array([matched_key_point.pt for matched_key_point in matched_key_points1])
     matched_key_points2 = np.array([matched_key_point.pt for matched_key_point in matched_key_points2])
     E, mask = cv2.findEssentialMat(matched_key_points1, matched_key_points2, k, method=cv2.RANSAC, prob=0.9999,
-                                   threshold=20.0)
+                                   threshold=0.5)
     return E, mask
 
 
@@ -250,7 +250,7 @@ def visualize_epipolar_lines(image1, image2, inlier_points1, inlier_points2, F):
     lines2 = get_epipolar_lines(inlier_points1, 1, F)
     img2_epilines = draw_epipolar_lines(image2, lines2, inlier_points2, colors)
 
-    plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(20, 10))
     plt.subplot(1, 2, 1)
     plt.imshow(cv2.cvtColor(img1_epilines, cv2.COLOR_BGR2RGB))
     plt.title('Inliers and Epipolar Lines in First Image')
@@ -281,7 +281,7 @@ def main():
     E, mask = get_essential_matrix(matched_key_points1, matched_key_points2, k)
     F = get_fundamental_matrix_from_essential(E, k)
 
-    # 3 Visualize) Visualize matched key_points after outliers filter, Epipolar lines for matches inlier, Print E&F
+    # 3 Visualize) Visualize matched key_points after outliers filter, Epipolar lines for matches inlier, Print E&F.
     inlier_random_matches_sample = filter_matches_with_essential_matrix(random_matches_sample, mask)
     plot_matches(image1, image1_key_points, image2, image2_key_points, inlier_random_matches_sample,
                  'matched key_points after outliers filter')
