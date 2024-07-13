@@ -45,13 +45,13 @@ def find_key_points(image):
     return key_points, descriptors
 
 
-def plot_key_points(image1, key_points1, image2, key_points2):
+def plot_key_points(image1, key_points1, image2, key_points2, images_header):
     """
     Plot the key_points of the images.
-    :param image1: first image (np.ndarray)
-    :param key_points1: first image key_point (tuple of cv2.KeyPoint)
-    :param image2: second image (np.ndarray)
-    :param key_points2: second image key_point (tuple of cv2.KeyPoint)
+    :param image1: first image (np.ndarray).
+    :param key_points1: first image key_point (tuple of cv2.KeyPoint).
+    :param image2: second image (np.ndarray).
+    :param key_points2: second image key_point (tuple of cv2.KeyPoint).
     """
     image1_with_key_points = cv2.drawKeypoints(image1, key_points1, None, color=(0, 0, 255))
     image2_with_key_points = cv2.drawKeypoints(image2, key_points2, None, color=(0, 0, 255))
@@ -59,11 +59,11 @@ def plot_key_points(image1, key_points1, image2, key_points2):
     plt.figure(figsize=(10, 5))
     plt.subplot(1, 2, 1)
     plt.imshow(cv2.cvtColor(image1_with_key_points, cv2.COLOR_BGR2RGB))
-    plt.title('Keypoints in Image 1')
+    plt.title(f'{images_header} in Image 1')
 
     plt.subplot(1, 2, 2)
     plt.imshow(cv2.cvtColor(image2_with_key_points, cv2.COLOR_BGR2RGB))
-    plt.title('Keypoints in Image 2')
+    plt.title(f'{images_header} in Image 2')
 
     plt.show()
 
@@ -75,50 +75,87 @@ def find_potential_matches(descriptors1, descriptors2):
     Applying ratio test to filtering ambiguous matches, (uses threshold of 0.8).
     :param descriptors1: Descriptors image1 key_points (np.ndarray (#key_points X 128 features))
     :param descriptors2: Descriptors image2 key_points (np.ndarray (#key_points X 128 features))
-    :return: list of potential matches between descriptors1 and descriptors2.
+    :return: List of potential matches between descriptors1 and descriptors2.
     """
     bf = cv2.BFMatcher()
     matches = bf.knnMatch(descriptors1, descriptors2, k=2)
 
     # Ratio test
-    good_matches = []
-    for m, n in matches:
-        if m.distance < 0.8 * n.distance:
-            good_matches.append(m)
+    best_matches = []
+    for best_match, second_best_match in matches:
+        if best_match.distance < 0.8 * second_best_match.distance:
+            best_matches.append(best_match)
 
-    return good_matches
+    return best_matches
 
 
 def get_matched_key_points(matches, key_points1, key_points2):
     """
     Get the matched key points.
-    :param matches: List of matches between 2 images.
-    :param key_points1: first image key_point (tuple of cv2.KeyPoint)
-    :param key_points2: second image key_point (tuple of cv2.KeyPoint)
+    :param matches: list of matches between 2 images.
+    :param key_points1: first image key_point (tuple of cv2.KeyPoint).
+    :param key_points2: second image key_point (tuple of cv2.KeyPoint).
     :return: Tuple with:
          - matched_key_points1: matched key_points from key_points1(tuple of cv2.KeyPoint).
          - matched_key_points2: matched key_points from key_points2(tuple of cv2.KeyPoint).
     """
-    matched_key_points1 = tuple(key_points1[m.queryIdx] for m in matches)
-    matched_key_points2 = tuple(key_points2[m.trainIdx] for m in matches)
+    matched_key_points1 = tuple(key_points1[match.queryIdx] for match in matches)
+    matched_key_points2 = tuple(key_points2[match.trainIdx] for match in matches)
     return matched_key_points1, matched_key_points2
+
+
+def draw_dashed_line(image, start_point, end_point):
+    """
+    Draw a dashed line between start and end points.
+    :param image: Image (np.ndarray).
+    :param start_point: Start point of the line.
+    :param end_point: End point of the line.
+    """
+    dist = ((start_point[0] - end_point[0]) ** 2 + (start_point[1] - end_point[1]) ** 2) ** 0.5
+    points = []
+    for i in np.arange(0, dist, 10):
+        r = i / dist
+        x = int((start_point[0] * (1 - r) + end_point[0] * r) + 0.5)
+        y = int((start_point[1] * (1 - r) + end_point[1] * r) + 0.5)
+        points.append((x, y))
+    for i in range(len(points) - 1):
+        if i % 2 == 0:
+            cv2.line(image, points[i], points[i + 1], color=(0, 255, 255), thickness=1)
 
 
 def plot_matches(image1, key_points1, image2, key_points2, matches):
     """
     Plot the matches between two images.
     :param image1: First image (np.ndarray).
-    :param key_points1: first image key_point (tuple of cv2.KeyPoint).
+    :param key_points1: Key points of the first image (tuple of cv2.KeyPoint).
     :param image2: Second image (np.ndarray).
-    :param key_points2: second image key_point (tuple of cv2.KeyPoint).
+    :param key_points2: Key points of the second image (tuple of cv2.KeyPoint).
     :param matches: List of matches (list of cv2.DMatch).
     """
-    image_matches = cv2.drawMatches(image1, key_points1, image2, key_points2, matches, None,
-                                    matchColor=(0, 255, 255), flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+    height1, width1, _ = image1.shape
+    height2, width2, _ = image2.shape
+    output_image = np.zeros((max(height1, height2), width1 + width2, 3), dtype='uint8')
+    output_image[:height1, :width1] = image1
+    output_image[:height2, width1:] = image2
+
+    for match in matches:
+        # Matching key_points
+        kp1 = key_points1[match.queryIdx].pt
+        kp2 = key_points2[match.trainIdx].pt
+
+        # Convert points to integer
+        pt1 = (int(kp1[0]), int(kp1[1]))
+        pt2 = (int(kp2[0]) + width1, int(kp2[1]))
+
+        cv2.circle(output_image, pt1, 5, (0, 0, 255), 1)  # Red circles on the left key_points
+        cv2.circle(output_image, pt2, 5, (0, 255, 0), 1)  # Green circles on the right key_points
+
+        # Draw yellow dashed lines between key_points
+        draw_dashed_line(output_image, pt1, pt2)
 
     plt.figure(figsize=(15, 7))
-    plt.imshow(cv2.cvtColor(image_matches, cv2.COLOR_BGR2RGB))
-    plt.title('Feature Matches')
+    plt.imshow(cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB))
+    plt.title('matched key_points')
     plt.show()
 
 
@@ -129,12 +166,12 @@ def main():
     # Find key_points in 2 images and plot them.
     image1_key_points, image1_descriptors = find_key_points(image1)
     image2_key_points, image2_descriptors = find_key_points(image2)
-    plot_key_points(image1, image1_key_points, image2, image2_key_points)
+    plot_key_points(image1, image1_key_points, image2, image2_key_points, 'Key_points')
 
     # Find matches between images and plot them.
     matches = find_potential_matches(image1_descriptors, image2_descriptors)
     matched_key_points1, matched_key_points2 = get_matched_key_points(matches, image1_key_points, image2_key_points)
-    plot_key_points(image1, matched_key_points1, image2, matched_key_points2)
+    plot_key_points(image1, matched_key_points1, image2, matched_key_points2, 'matched key_points')
     random_matches_sample = random.sample(matches, k=70)
     plot_matches(image1, image1_key_points, image2, image2_key_points, random_matches_sample)
 
