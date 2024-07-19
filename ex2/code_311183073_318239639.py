@@ -66,6 +66,7 @@ def plot_key_points(image1, key_points1, image2, key_points2, images_header):
     plt.imshow(cv2.cvtColor(image2_with_key_points, cv2.COLOR_BGR2RGB))
     plt.title(f'{images_header} in Image 2')
 
+    plt.tight_layout()
     plt.show()
 
 
@@ -171,8 +172,8 @@ def get_essential_matrix(matched_key_points1, matched_key_points2, k):
     """
     matched_key_points1 = np.array([matched_key_point.pt for matched_key_point in matched_key_points1])
     matched_key_points2 = np.array([matched_key_point.pt for matched_key_point in matched_key_points2])
-    E, mask = cv2.findEssentialMat(matched_key_points1, matched_key_points2, k, method=cv2.RANSAC, prob=0.9999,
-                                   threshold=0.5)
+    E, mask = cv2.findEssentialMat(matched_key_points1, matched_key_points2, k, method=cv2.RANSAC, prob=0.999,
+                                   threshold=3)
     return E, mask
 
 
